@@ -34,6 +34,12 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
+      - name: Diagnose SDK package availability
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3 --list | tee /tmp/sdk-packages.txt
+          grep -E "platforms;android-37|build-tools;37\.0\.0|ndk;29\.0\.13846066" /tmp/sdk-packages.txt || true
+
       - name: Install required SDK 37 and NDK
         run: |
           set -euo pipefail
