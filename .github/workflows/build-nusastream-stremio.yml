@@ -70,14 +70,13 @@ jobs:
           text = text.replace('<string name="server_notification_title">Stremio</string>', '<string name="server_notification_title">NusaStream</string>')
           strings.write_text(text)
 
-          google = Path("app/google-services.json")
-          if google.exists():
-              data = json.loads(google.read_text())
-              for client in data.get("client", []):
-                  info = client.get("client_info", {}).get("android_client_info", {})
-                  if "package_name" in info:
-                      info["package_name"] = "com.nusastream.app"
-              google.write_text(json.dumps(data, indent=2) + "\n")
+          # This branded build has no Firebase configuration for its new package ID.
+          # Remove the Google Services plugin so Gradle does not parse the upstream
+          # Stremio-only google-services.json or require a mismatched Firebase client.
+          gradle = Path("app/build.gradle.kts")
+          text = gradle.read_text()
+          text = text.replace('    id("com.google.gms.google-services")\n', "")
+          gradle.write_text(text)
 
           manifest = Path("app/src/main/AndroidManifest.xml")
           text = manifest.read_text()
