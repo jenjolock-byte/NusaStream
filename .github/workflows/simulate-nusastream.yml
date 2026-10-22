@@ -52,3 +52,5 @@ jobs:
       - name: Confirm no APK was assembled
         if: success()
         run: echo "PREFLIGHT PASSED. No APK was assembled."
+
+# Trigger a fresh preflight after correcting the SDK preview-channel configuration in the build workflow.
