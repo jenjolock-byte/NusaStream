@@ -1,4 +1,4 @@
-name: NusaStream Preflight Simulation # build-log diagnostic retry
+name: NusaStream Preflight Simulation # Firebase build fix retry
 
 on:
   push:
