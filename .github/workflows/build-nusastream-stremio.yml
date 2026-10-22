@@ -1,10 +1,6 @@
 name: Build NusaStream from Stremio Android
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/build-nusastream-stremio.yml"
   workflow_dispatch:
 
 permissions:
@@ -43,7 +39,7 @@ jobs:
 
       - name: Install Android SDK and NDK
         run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13846066"
+          sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
 
       - name: Apply NusaStream branding and Android TV launcher support
         working-directory: upstream
@@ -61,8 +57,6 @@ jobs:
           if old not in text:
               raise SystemExit("Could not find the expected Stremio applicationId; stopping instead of patching an unknown build.")
           text = text.replace(old, new, 1)
-          text = text.replace("compileSdk = 37", "compileSdk = 36", 1)
-          text = text.replace("targetSdk = 37", "targetSdk = 36", 1)
           gradle.write_text(text)
 
           strings = Path("app/src/main/res/values/strings.xml")
@@ -98,7 +92,11 @@ jobs:
         working-directory: upstream
         run: chmod +x ./gradlew
 
-      - name: Compile and assemble debug APKs
+      - name: Simulation preflight — verify Android dependency metadata
+        working-directory: upstream
+        run: ./gradlew :app:checkDebugAarMetadata --no-daemon --warning-mode all
+
+      - name: Build APKs only after simulation passes
         working-directory: upstream
         run: ./gradlew :app:compileDebugKotlin :app:assembleDebug --no-daemon --warning-mode all
 
