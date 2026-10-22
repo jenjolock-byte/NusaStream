@@ -43,7 +43,7 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install Android API 37 preview, build tools, and NDK
-        run: sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.13846066"
 
       - name: Apply NusaStream branding and Android TV launcher support
         working-directory: upstream
@@ -119,7 +119,7 @@ jobs:
           (cd nusastream-artifacts && sha256sum *.apk > SHA256SUMS.txt)
           printf 'Source commit: ' > nusastream-artifacts/BUILD-INFO.txt
           git rev-parse HEAD >> nusastream-artifacts/BUILD-INFO.txt
-          printf 'Application ID: com.nusastream.app\\nDisplay name: NusaStream\\nSDK: Android 37\\n' >> nusastream-artifacts/BUILD-INFO.txt
+          printf 'Application ID: com.nusastream.app\\nDisplay name: NusaStream\\nSDK: Android 37.0\\n' >> nusastream-artifacts/BUILD-INFO.txt
 
       - name: Upload NusaStream APKs
         uses: actions/upload-artifact@v4
