@@ -1,8 +1,9 @@
 name: NusaStream Preflight Simulation
 
-"on":
+on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - ".github/workflows/simulate-nusastream.yml"
   workflow_dispatch:
@@ -11,12 +12,12 @@ permissions:
   contents: read
 
 jobs:
-  simulate:
-    name: Validate dependencies without producing an APK
+  preflight:
+    name: Check Stremio Android source without building APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout upstream Stremio Android source
+      - name: Checkout Stremio Android source
         uses: actions/checkout@v4
         with:
           repository: stremio-native/stremio-android
@@ -25,7 +26,7 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Set up JDK 21
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -34,16 +35,8 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Diagnose SDK package availability
-        run: |
-          set -euo pipefail
-          sdkmanager --channel=3 --list | tee /tmp/sdk-packages.txt
-          grep -E "platforms;android-37|build-tools;37\.0\.0|ndk;29\.0\.13846066" /tmp/sdk-packages.txt || true
-
-      - name: Install required SDK 37 and NDK
-        run: |
-          set -euo pipefail
-          sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
+      - name: Install Android SDK and NDK requirements
+        run: sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -52,10 +45,10 @@ jobs:
         working-directory: upstream
         run: chmod +x ./gradlew
 
-      - name: Simulation — validate Android dependency metadata and Kotlin compilation
+      - name: Run preflight compilation checks only
         working-directory: upstream
         run: ./gradlew :app:checkDebugAarMetadata :app:compileDebugKotlin --no-daemon --warning-mode all
 
-      - name: Simulation report
+      - name: Confirm no APK was assembled
         if: success()
-        run: echo "PREFLIGHT PASSED: SDK installation, Android dependency metadata, and Kotlin compilation succeeded. No APK was assembled."
+        run: echo "PREFLIGHT PASSED. No APK was assembled."
