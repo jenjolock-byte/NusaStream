@@ -43,7 +43,7 @@ jobs:
 
       - name: Install Android SDK and NDK
         run: |
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13846066"
 
       - name: Apply NusaStream branding and Android TV launcher support
         working-directory: upstream
@@ -60,7 +60,7 @@ jobs:
           new = 'applicationId = "com.nusastream.app"'
           if old not in text:
               raise SystemExit("Could not find the expected Stremio applicationId; stopping instead of patching an unknown build.")
-          gradle.write_text(text.replace(old, new, 1))
+          text = text.replace(old, new, 1)\n          text = text.replace("compileSdk = 37", "compileSdk = 36", 1)\n          text = text.replace("targetSdk = 37", "targetSdk = 36", 1)\n          gradle.write_text(text)
 
           strings = Path("app/src/main/res/values/strings.xml")
           text = strings.read_text()
