@@ -18,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +55,8 @@ fun NusaStreamApp(activity: MainActivity) {
     var streamUrl by remember { mutableStateOf("") }
     var magnetUrl by remember { mutableStateOf("") }
     var addonInput by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
+    var catalogFilter by remember { mutableStateOf("Semua") }
     var status by remember { mutableStateOf("Sedia") }
     var playerChoice by remember { mutableStateOf(prefs.getString("player_choice", "Built-in") ?: "Built-in") }
     var addons by remember { mutableStateOf(listOf<Addon>()) }
@@ -81,7 +85,7 @@ fun NusaStreamApp(activity: MainActivity) {
                     Text("NusaStream", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, color = Accent)
                     Text("MOVIES • SERIES • LIVE", color = Muted, fontSize = 10.sp)
                     Spacer(Modifier.height(12.dp))
-                    listOf("Home", "Movies / Series", "Player", "Torrent", "Add-ons", "Settings").forEach { item ->
+                    listOf("Home", "Movies / Series", "Search", "Player", "Torrent", "Add-ons", "Settings").forEach { item ->
                         Row(Modifier.fillMaxWidth().background(if (page == item) Color(0xFF253A40) else Color.Transparent, RoundedCornerShape(9.dp)).clickable { page = item }.padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(item, color = if (page == item) Accent else Color.White, fontWeight = if (page == item) FontWeight.Bold else FontWeight.Normal, fontSize = 13.sp)
                         }
@@ -106,30 +110,49 @@ fun NusaStreamApp(activity: MainActivity) {
                         "Movies / Series" -> {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = { scope.launch { loadCatalogs(addons, { catalog = it }, { status = it }) } }) { Text("Refresh katalog") }
-                                OutlinedButton(onClick = { catalog = catalog.filter { it.type.equals("series", true) } }) { Text("Siri") }
-                                OutlinedButton(onClick = { catalog = catalog.filter { it.type.equals("movie", true) } }) { Text("Filem") }
+                                OutlinedButton(onClick = { catalogFilter = "series" }) { Text("Siri") }
+                                OutlinedButton(onClick = { catalogFilter = "movie" }) { Text("Filem") }
                                 OutlinedButton(onClick = { scope.launch { loadCatalogs(addons, { catalog = it }, { status = it }) } }) { Text("Semua") }
                             }
                             Spacer(Modifier.height(8.dp))
                             Text(status, color = Muted, fontSize = 12.sp)
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(catalog) { item ->
-                                    Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(10.dp)).clickable {
-                                        selectedMedia = item
-                                        scope.launch {
-                                            status = "Mencari sumber untuk ${item.name}..."
-                                            streams = findStreams(addons, item)
-                                            status = if (streams.isEmpty()) "Tiada stream ditemui daripada add-on ini" else "Pilih sumber untuk dimainkan"
+                            val visibleCatalog = catalog.filter { item ->
+                                (catalogFilter == "Semua" || item.type.equals(catalogFilter, true)) &&
+                                    (searchQuery.isBlank() || item.name.contains(searchQuery.trim(), ignoreCase = true))
+                            }
+                            OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Cari filem atau siri...") }, singleLine = true)
+                            Spacer(Modifier.height(10.dp))
+                            if (visibleCatalog.isEmpty()) {
+                                Text(if (catalog.isEmpty()) "Tiada katalog. Tambah add-on yang menyokong katalog dahulu." else "Tiada hasil sepadan dengan carian.", color = Muted)
+                            } else {
+                                LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    item {
+                                        Text(if (searchQuery.isBlank()) "Pilihan katalog" else "Hasil carian: " + visibleCatalog.size, color = Accent, fontWeight = FontWeight.Bold)
+                                        Spacer(Modifier.height(8.dp))
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            items(visibleCatalog) { item ->
+                                                Column(Modifier.width(126.dp).clickable {
+                                                    selectedMedia = item
+                                                    scope.launch {
+                                                        status = "Mencari sumber untuk " + item.name + "..."
+                                                        streams = findStreams(addons, item)
+                                                        status = if (streams.isEmpty()) "Tiada stream ditemui daripada add-on ini" else "Pilih sumber untuk dimainkan"
+                                                    }
+                                                }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    if (item.poster.startsWith("https://") || item.poster.startsWith("http://")) {
+                                                        AsyncImage(model = item.poster, contentDescription = item.name, modifier = Modifier.fillMaxWidth().height(178.dp).background(Panel, RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                                                    } else {
+                                                        Box(Modifier.fillMaxWidth().height(178.dp).background(Panel, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Text("NusaStream", color = Accent, fontWeight = FontWeight.Bold) }
+                                                    }
+                                                    Text(item.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2, fontSize = 12.sp)
+                                                    Text(item.type + " • " + item.addonName, color = Muted, fontSize = 10.sp, maxLines = 1)
+                                                }
+                                            }
                                         }
-                                    }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text(item.name, color = Color.White, fontWeight = FontWeight.SemiBold)
-                                            Text("${item.type} • ${item.addonName}", color = Muted, fontSize = 11.sp)
-                                        }
-                                        Text("Lihat sumber ›", color = Accent, fontSize = 12.sp)
                                     }
                                 }
                             }
+
                             selectedMedia?.let { item ->
                                 Spacer(Modifier.height(8.dp))
                                 Text("Sumber: ${item.name}", color = Accent, fontWeight = FontWeight.Bold)
@@ -140,6 +163,46 @@ fun NusaStreamApp(activity: MainActivity) {
                                     }.padding(6.dp))
                                 }
                             }
+                        }
+                        "Search" -> {
+                            Text("Cari kandungan daripada katalog add-on yang dipasang.", color = Muted)
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Taip tajuk filem atau siri") }, singleLine = true)
+                            Spacer(Modifier.height(12.dp))
+                            val searchResults = catalog.filter { searchQuery.isNotBlank() && it.name.contains(searchQuery.trim(), ignoreCase = true) }
+                            Text(if (searchQuery.isBlank()) "Masukkan tajuk untuk mula mencari." else searchResults.size.toString() + " hasil carian", color = Accent, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(8.dp))
+                            if (searchQuery.isNotBlank() && searchResults.isEmpty()) {
+                                Text("Tiada hasil. Cuba tajuk lain atau refresh katalog.", color = Muted)
+                            } else {
+                                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    items(searchResults) { item ->
+                                        Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(10.dp)).clickable {
+                                            selectedMedia = item
+                                            scope.launch {
+                                                status = "Mencari sumber untuk " + item.name + "..."
+                                                streams = findStreams(addons, item)
+                                                status = if (streams.isEmpty()) "Tiada stream ditemui daripada add-on ini" else "Pilih sumber untuk dimainkan"
+                                            }
+                                            page = "Movies / Series"
+                                        }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            if (item.poster.startsWith("https://") || item.poster.startsWith("http://")) {
+                                                AsyncImage(model = item.poster, contentDescription = item.name, modifier = Modifier.width(66.dp).height(94.dp).background(Bg, RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
+                                            } else {
+                                                Box(Modifier.width(66.dp).height(94.dp).background(Bg, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) { Text("NS", color = Accent) }
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(item.name, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                                Text(item.type + " • " + item.addonName, color = Muted, fontSize = 11.sp)
+                                            }
+                                            Text("Pilih ›", color = Accent)
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text("Carian menggunakan metadata katalog; ketersediaan stream bergantung pada add-on sumber main.", color = Muted, fontSize = 11.sp)
                         }
                         "Player" -> {
                             OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, modifier = Modifier.fillMaxWidth(), label = { Text("URL video HTTP(S) / HLS .m3u8") }, singleLine = true)
