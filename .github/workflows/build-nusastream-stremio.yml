@@ -103,7 +103,9 @@ jobs:
 
       - name: Build APKs only after simulation passes
         working-directory: upstream
-        run: ./gradlew :app:compileDebugKotlin :app:assembleDebug --no-daemon --warning-mode all
+        run: |
+          set -o pipefail
+          ./gradlew :app:compileDebugKotlin :app:assembleDebug --no-daemon --warning-mode all 2>&1 | tee ../nusastream-build.log
 
       - name: Verify APK outputs and create checksums
         working-directory: upstream
@@ -120,6 +122,15 @@ jobs:
           printf 'Source commit: ' > nusastream-artifacts/BUILD-INFO.txt
           git rev-parse HEAD >> nusastream-artifacts/BUILD-INFO.txt
           printf 'Application ID: com.nusastream.app\\nDisplay name: NusaStream\\nSDK: Android 37.0\\n' >> nusastream-artifacts/BUILD-INFO.txt
+
+      - name: Upload build log for diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NusaStream-build-log
+          path: upstream/nusastream-build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload NusaStream APKs
         uses: actions/upload-artifact@v4
