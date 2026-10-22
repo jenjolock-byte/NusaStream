@@ -151,7 +151,7 @@ fun NusaStreamApp(activity: MainActivity) {
                                 OutlinedButton(onClick = { player.seekForward() }) { Text("+10s") }
                             }
                             Spacer(Modifier.height(10.dp))
-                            AndroidView(Modifier.fillMaxWidth().weight(1f).background(Color.Black, RoundedCornerShape(10.dp)), factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } }, update = { it.player = player })
+                            AndroidView(modifier = Modifier.fillMaxWidth().weight(1f).background(Color.Black, RoundedCornerShape(10.dp)), factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } }, update = { view -> view.player = player })
                             Text(status, color = Muted, fontSize = 12.sp)
                         }
                         "Torrent" -> {
