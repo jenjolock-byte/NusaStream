@@ -36,7 +36,7 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install Android API 37 preview and NDK
-        run: sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.13846066"
 
       - name: Verify upstream SDK configuration is API 37
         working-directory: upstream
