@@ -2,6 +2,10 @@ name: Build NusaStream from Stremio Android
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["NusaStream Preflight Simulation"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -12,6 +16,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     name: Build branded NusaStream APKs
     runs-on: ubuntu-latest
     timeout-minutes: 90
