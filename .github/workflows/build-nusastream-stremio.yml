@@ -128,7 +128,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NusaStream-build-log
-          path: upstream/nusastream-build.log
+          path: nusastream-build.log
           if-no-files-found: ignore
           retention-days: 7
 
