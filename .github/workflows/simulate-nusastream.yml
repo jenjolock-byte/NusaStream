@@ -1,4 +1,4 @@
-name: NusaStream Preflight Simulation
+name: NusaStream Preflight Simulation # build-log diagnostic retry
 
 on:
   push:
