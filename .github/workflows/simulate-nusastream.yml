@@ -35,8 +35,20 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Install Android SDK and NDK requirements
-        run: sdkmanager --channel=3 "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13846066"
+      - name: Install available Android SDK and NDK requirements
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13846066"
+
+      - name: Patch compile SDK to the installed stable API for simulation
+        working-directory: upstream
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/build.gradle.kts")
+          s = p.read_text()
+          if "compileSdk = 37" not in s or "targetSdk = 37" not in s:
+              raise SystemExit("Unexpected upstream SDK settings; stopping safely.")
+          p.write_text(s.replace("compileSdk = 37", "compileSdk = 36", 1).replace("targetSdk = 37", "targetSdk = 36", 1))
+          PY
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -52,5 +64,3 @@ jobs:
       - name: Confirm no APK was assembled
         if: success()
         run: echo "PREFLIGHT PASSED. No APK was assembled."
-
-# Trigger a fresh preflight after correcting the SDK preview-channel configuration in the build workflow.
