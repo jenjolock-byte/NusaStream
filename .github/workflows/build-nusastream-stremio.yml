@@ -1,0 +1,124 @@
+name: Build NusaStream from Stremio Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-nusastream-stremio.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nusastream-stremio-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build branded NusaStream APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout NusaStream build configuration
+        uses: actions/checkout@v4
+
+      - name: Checkout Stremio Android source and submodules
+        uses: actions/checkout@v4
+        with:
+          repository: stremio-native/stremio-android
+          ref: master
+          path: upstream
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.13846066"
+
+      - name: Apply NusaStream branding and Android TV launcher support
+        working-directory: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          gradle = Path("app/build.gradle.kts")
+          text = gradle.read_text()
+          old = 'applicationId = "com.stremio.mobile"'
+          new = 'applicationId = "com.nusastream.app"'
+          if old not in text:
+              raise SystemExit("Could not find the expected Stremio applicationId; stopping instead of patching an unknown build.")
+          gradle.write_text(text.replace(old, new, 1))
+
+          strings = Path("app/src/main/res/values/strings.xml")
+          text = strings.read_text()
+          text = text.replace('<string name="app_name">Stremio</string>', '<string name="app_name">NusaStream</string>')
+          text = text.replace('<string name="server_notification_title">Stremio</string>', '<string name="server_notification_title">NusaStream</string>')
+          strings.write_text(text)
+
+          google = Path("app/google-services.json")
+          if google.exists():
+              data = json.loads(google.read_text())
+              for client in data.get("client", []):
+                  info = client.get("client_info", {}).get("android_client_info", {})
+                  if "package_name" in info:
+                      info["package_name"] = "com.nusastream.app"
+              google.write_text(json.dumps(data, indent=2) + "\n")
+
+          manifest = Path("app/src/main/AndroidManifest.xml")
+          text = manifest.read_text()
+          marker = '<category android:name="android.intent.category.LAUNCHER" />'
+          tv = '<category android:name="android.intent.category.LEANBACK_LAUNCHER" />'
+          if tv not in text:
+              if marker not in text:
+                  raise SystemExit("Could not find the launcher intent filter; stopping instead of guessing.")
+              text = text.replace(marker, marker + "\n                " + tv, 1)
+          manifest.write_text(text)
+          PY
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        working-directory: upstream
+        run: chmod +x ./gradlew
+
+      - name: Compile and assemble debug APKs
+        working-directory: upstream
+        run: ./gradlew :app:compileDebugKotlin :app:assembleDebug --no-daemon --warning-mode all
+
+      - name: Verify APK outputs and create checksums
+        working-directory: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          find app/build/outputs/apk/debug -type f -name '*.apk' -print
+          test -n "$(find app/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
+          mkdir -p nusastream-artifacts
+          while IFS= read -r -d '' file; do
+            cp "$file" "nusastream-artifacts/NusaStream-$(basename "$file")"
+          done < <(find app/build/outputs/apk/debug -type f -name '*.apk' -print0)
+          (cd nusastream-artifacts && sha256sum *.apk > SHA256SUMS.txt)
+          printf 'Source commit: ' > nusastream-artifacts/BUILD-INFO.txt
+          git rev-parse HEAD >> nusastream-artifacts/BUILD-INFO.txt
+          printf 'Application ID: com.nusastream.app\nDisplay name: NusaStream\n' >> nusastream-artifacts/BUILD-INFO.txt
+
+      - name: Upload NusaStream APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: NusaStream-Stremio-based-debug-APKs
+          path: upstream/nusastream-artifacts/*
+          if-no-files-found: error
+          retention-days: 14
