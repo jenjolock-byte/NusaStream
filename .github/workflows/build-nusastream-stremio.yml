@@ -79,7 +79,7 @@ jobs:
                   info = client.get("client_info", {}).get("android_client_info", {})
                   if "package_name" in info:
                       info["package_name"] = "com.nusastream.app"
-              google.write_text(json.dumps(data, indent=2) + "\\n")
+              google.write_text(json.dumps(data, indent=2) + "\n")
 
           manifest = Path("app/src/main/AndroidManifest.xml")
           text = manifest.read_text()
